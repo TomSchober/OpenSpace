@@ -195,7 +195,19 @@ local createModelPart = function (parent, sunLightSourceNode, models, geometry, 
     }
 end
 
-
+--Returns string for current operating system (e.g. "Linux")
+local getos = function (raw)
+  local f = assert(io.popen('uname', 'r'))
+  local s = assert(f:read('*a'))
+  f:close()
+  if raw then
+    return s
+  end
+  s = string.gsub(s, '^%s+', '')
+  s = string.gsub(s, '%s+$', '')
+  s = string.gsub(s, '[\n\r]+', ' ')
+  return s
+end
 
 asset.export("registerSceneGraphNodes", registerSceneGraphNodes)
 asset.export("registerSceneGraphNodesAndExport", registerSceneGraphNodesAndExport)
@@ -206,3 +218,4 @@ asset.export("requireAll", requireAll)
 asset.export("requestAll", requestAll)
 asset.export("getDefaultLightSources", getDefaultLightSources)
 asset.export("createModelPart", createModelPart)
+asset.export("getos", getos)

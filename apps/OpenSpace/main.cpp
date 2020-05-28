@@ -43,7 +43,9 @@
 #include <ghoul/misc/boolean.h>
 //#include <ghoul/opengl/ghoul_gl.h>
 #include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
+#ifdef WIN32
+  #define GLFW_EXPOSE_NATIVE_WIN32
+#endif
 #include <GLFW/glfw3native.h>
 #include <sgct/clustermanager.h>
 #include <sgct/commandline.h>
@@ -101,14 +103,14 @@ constexpr const char* SpoutTag = "Spout";
 constexpr const char* OpenVRTag = "OpenVR";
 
 // @TODO (abock, 2020-04-09): These state variables should disappear
-const Window* currentWindow = nullptr;
+const sgct::Window* currentWindow = nullptr;
 const BaseViewport* currentViewport = nullptr;
 Frustum::Mode currentFrustumMode;
 glm::mat4 currentModelViewProjectionMatrix;
 glm::mat4 currentModelMatrix;
 
 #ifdef OPENVR_SUPPORT
-Window* FirstOpenVRWindow = nullptr;
+sgct::Window* FirstOpenVRWindow = nullptr;
 #endif
 
 #ifdef OPENSPACE_HAS_VTUNE
@@ -262,7 +264,7 @@ void mainInitFunc(GLFWwindow*) {
         icons[0].width = x;
         icons[0].height = y;
 
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             glfwSetWindowIcon(window->windowHandle(), 1, icons);
         }
 
@@ -280,7 +282,7 @@ void mainInitFunc(GLFWwindow*) {
 
     // Find if we have at least one OpenVR window
     // Save reference to first OpenVR window, which is the one we will copy to the HMD.
-    for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+    for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
         if (window->hasTag(OpenVRTag)) {
 #ifdef OPENVR_SUPPORT
             FirstOpenVRWindow = window.get();
@@ -299,7 +301,7 @@ void mainInitFunc(GLFWwindow*) {
     }
 
     for (size_t i = 0; i < Engine::instance().windows().size(); ++i) {
-        Window& window = *Engine::instance().windows()[i];
+        sgct::Window& window = *Engine::instance().windows()[i];
         if (!window.hasTag(SpoutTag)) {
             continue;
         }
@@ -309,9 +311,9 @@ void mainInitFunc(GLFWwindow*) {
 
         w.windowId = i;
 
-        const Window::StereoMode sm = window.stereoMode();
-        const bool hasStereo = (sm != Window::StereoMode::NoStereo) &&
-                               (sm < Window::StereoMode::SideBySide);
+        const sgct::Window::StereoMode sm = window.stereoMode();
+        const bool hasStereo = (sm != sgct::Window::StereoMode::NoStereo) &&
+                               (sm < sgct::Window::StereoMode::SideBySide);
 
         if (hasStereo) {
             SpoutWindow::SpoutData& left = w.leftOrMain;
@@ -651,7 +653,8 @@ void mainPostDrawFunc() {
     for (const SpoutWindow& w : SpoutWindows) {
         sgct::Window& window = *Engine::instance().windows()[w.windowId];
         if (w.leftOrMain.initialized) {
-            const GLuint texId = window.frameBufferTexture(Window::TextureIndex::LeftEye);
+            const GLuint texId
+                = window.frameBufferTexture(sgct::Window::TextureIndex::LeftEye);
             glBindTexture(GL_TEXTURE_2D, texId);
             w.leftOrMain.handle->SendTexture(
                 texId,
@@ -662,7 +665,8 @@ void mainPostDrawFunc() {
         }
 
         if (w.right.initialized) {
-            const GLuint texId = window.frameBufferTexture(Window::TextureIndex::RightEye);
+            const GLuint texId
+                = window.frameBufferTexture(sgct::Window::TextureIndex::RightEye);
             glBindTexture(GL_TEXTURE_2D, texId);
             w.right.handle->SendTexture(
                 texId,
@@ -887,7 +891,7 @@ void setSgctDelegateFunctions() {
     sgctDelegate.clearAllWindows = [](const glm::vec4& clearColor) {
         ZoneScoped
 
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glfwSwapBuffers(window->windowHandle());
@@ -961,14 +965,14 @@ void setSgctDelegateFunctions() {
             );
         }
         switch (currentWindow->stereoMode()) {
-            case Window::StereoMode::SideBySide:
-            case Window::StereoMode::SideBySideInverted:
+            case sgct::Window::StereoMode::SideBySide:
+            case sgct::Window::StereoMode::SideBySideInverted:
                 return glm::ivec2(
                     currentWindow->resolution().x / 2,
                     currentWindow->resolution().y
                 );
-            case Window::StereoMode::TopBottom:
-            case Window::StereoMode::TopBottomInverted:
+            case sgct::Window::StereoMode::TopBottom:
+            case sgct::Window::StereoMode::TopBottomInverted:
                 return glm::ivec2(
                     currentWindow->resolution().x,
                     currentWindow->resolution().y / 2
@@ -1031,7 +1035,7 @@ void setSgctDelegateFunctions() {
     sgctDelegate.hasGuiWindow = []() {
         ZoneScoped
 
-        for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+        for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
             if (window->hasTag("GUI")) {
                 return true;
             }
@@ -1051,12 +1055,12 @@ void setSgctDelegateFunctions() {
     sgctDelegate.isUsingSwapGroups = []() {
         ZoneScoped
 
-        return Window::isUsingSwapGroups();
+        return sgct::Window::isUsingSwapGroups();
     };
     sgctDelegate.isSwapGroupMaster = []() {
         ZoneScoped
 
-        return Window::isSwapGroupMaster();
+        return sgct::Window::isSwapGroupMaster();
     };
     sgctDelegate.viewProjectionMatrix = []() {
         ZoneScoped
@@ -1150,7 +1154,7 @@ void setSgctDelegateFunctions() {
     sgctDelegate.getNativeWindowHandle = [](size_t windowIndex) -> void* {
         ZoneScoped
 
-        Window* w = Engine::instance().windows()[windowIndex].get();
+        sgct::Window* w = Engine::instance().windows()[windowIndex].get();
         if (w) {
             HWND hWnd = glfwGetWin32Window(w->windowHandle());
             return reinterpret_cast<void*>(hWnd);
@@ -1392,7 +1396,7 @@ int main(int argc, char** argv) {
     // machine. If the loading screen shows up without doing anything to the window, it
     // is fixed. With the bug, the rendering stays gray even well after the main render
     // loop has started     -- 2018-10-28   abock
-    for (const std::unique_ptr<Window>& window : Engine::instance().windows()) {
+    for (const std::unique_ptr<sgct::Window>& window : Engine::instance().windows()) {
         GLFWwindow* w = window->windowHandle();
         int x, y;
         glfwGetWindowPos(w, &x, &y);
